@@ -11,3 +11,5 @@ While C bindings work fine, a native Rust solution would be the optimal choice.
 
 ### Strategy
 The first phase is to get the core functionality of H3 ported to Rust with minimal changes to the system. This includes source code, tests, and the binaries. There will be natural updates that can take place along the way, however. Many of the C functions that accept pointers can be converted to `impl` blocks that return values, and the conversion functions can be moved to `Into` and `TryInto` implementations.
+
+The second phase will be refactoring the code that still bears the marks of its parent into idiomatic Rust. Tests and binaries will be updated as well.
