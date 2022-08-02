@@ -1,0 +1,8 @@
+[package]
+name = "h3-rs"
+version = "0.1.0"
+edition = "2021"
+authors = ["Jonthan Whittle <jonathan.m.whittle@gmail.com>"]
+
+[dependencies]
+libm = "0.2.3"
