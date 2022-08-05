@@ -400,13 +400,7 @@ impl CoordIJK {
 
 impl Into<Vec2d> for CoordIJK {
     fn into(self) -> Vec2d {
-        let i = self.i - self.k;
-        let j = self.j - self.k;
-
-        Vec2d {
-            x: i as f64 - 5.0 * j as f64,
-            y: j as f64 * M_SIN60,
-        }
+        (&self).into()
     }
 }
 
@@ -426,7 +420,7 @@ impl Add for CoordIJK {
     type Output = Self;
 
     fn add(self, rhs: Self::Output) -> Self::Output {
-        Self::Output::new(self.i + rhs.i, self.j + rhs.j, self.k + rhs.k)
+        (&self).add(&rhs)
     }
 }
 
@@ -526,6 +520,12 @@ impl Direction {
     }
 }
 
+impl Into<Direction> for u64 {
+    fn into(self) -> Direction {
+        (self as usize).into()
+    }
+}
+
 impl Into<Direction> for usize {
     fn into(self) -> Direction {
         match self {
@@ -538,6 +538,23 @@ impl Into<Direction> for usize {
             6 => Direction::IJAxesDigit,
             7 => Direction::InvalidDigit,
             _ => Direction::InvalidDigit,
+        }
+    }
+}
+
+impl Into<u64> for Direction {
+    fn into(self) -> u64 {
+        match self {
+            Direction::CenterDigit => 0,
+            Direction::KAxesDigit => 1,
+            Direction::JAxesDigit => 2,
+            Direction::JKAxesDigit => 3,
+            Direction::IAxesDigit => 4,
+            Direction::IKAxesDigit => 5,
+            Direction::IJAxesDigit => 6,
+            Direction::InvalidDigit => 7,
+            Direction::NumDigits => 7,
+            Direction::PentagonSkippedDigit => 1,
         }
     }
 }

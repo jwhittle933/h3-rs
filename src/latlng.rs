@@ -1,8 +1,15 @@
 use crate::{
-    constants::{EARTH_RADIUS_KM, EPSILON, MAX_H3_RES, M_180_PI, M_2PI, M_PI, M_PI_180, M_PI_2},
+    constants::{
+        EARTH_RADIUS_KM, EPSILON, MAX_H3_RES, M_180_PI, M_2PI, M_AP7_ROT_RADS, M_PI, M_PI_180,
+        M_PI_2, NUM_ICOSA_FACES, RES0_U_GNOMONIC,
+    },
     error::H3ErrorCode,
+    faceijk::{FaceIJK, FACE_AXES_AZ_RADS_CII, FACE_CENTER_GEO, FACE_CENTER_POINT},
+    is_resolution_classIII,
     math::ipow,
-    CellBoundary, H3Index,
+    vec2d::{Vec2d, M_SQRT7},
+    vec3d::Vec3d,
+    CellBoundary, CoordIJK, H3Index,
 };
 use libm;
 
@@ -10,7 +17,7 @@ pub const EPSILON_DEG: f64 = 0.000000001;
 pub const EPSILON_RAD: f64 = EPSILON_DEG / M_PI_180;
 
 /// Latitude and Longitude in radians.
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Default, Clone, PartialEq, PartialOrd)]
 pub struct LatLng {
     pub lat: f64,
     pub lng: f64,
@@ -77,7 +84,7 @@ impl LatLng {
 
     /// Computes the the point on the sphere a specified azumuth and distance from
     /// another point.
-    fn geo_azimuth_distance_rads(&self, mut az: f64, distance: f64) -> Self {
+    pub(crate) fn geo_azimuth_distance_rads(&self, mut az: f64, distance: f64) -> Self {
         let mut out = LatLng { lat: 0., lng: 0. };
         if distance < EPSILON {
             return self.clone();
@@ -144,6 +151,96 @@ impl LatLng {
 
         out
     }
+
+    /// Encodes a coordinate on the sphere to the corresponding icosahedron
+    /// containing 2D hex coordinates relative to that face center.
+    pub fn to_hex2d(&self, resolution: usize) -> Vec2d {
+        let mut out = Vec2d { x: 0., y: 0. };
+        let (face, sq_euclidean_distance) = self.closest_face();
+
+        let r = libm::acos(1. - sq_euclidean_distance / 2.);
+
+        if r < EPSILON {
+            return out;
+        }
+
+        let theta = pos_angle_rads(
+            FACE_AXES_AZ_RADS_CII[face as usize][0]
+                - pos_angle_rads(self.geo_azimuth_rads(&FACE_CENTER_GEO[face as usize])),
+        );
+
+        // adjust theta for Class III (odd resolutions)
+        if is_resolution_classIII(resolution) {
+            theta = pos_angle_rads(theta - M_AP7_ROT_RADS);
+        }
+
+        // perform gnomonic scaling of r
+        r = libm::tan(r);
+        // scale for current resolution length u
+        r /= RES0_U_GNOMONIC;
+
+        for i in 0..resolution {
+            r *= M_SQRT7;
+        }
+
+        // we now have (r, theta) in hex2d with theta ccw from x-axes
+        // convert to local x,y
+        out.x = r * libm::cos(theta);
+        out.y = r * libm::sin(theta);
+        out
+    }
+
+    /// Encodes a coordinate on the sphere to [`FaceIJK`] of the containing
+    /// cell at the specified resolution.
+    pub(crate) fn to_faceijk(&self, resolution: usize) -> FaceIJK {
+        // TODO: fix redundant call to `closest_face`.
+        let (face, _) = self.closest_face();
+        let vec2d = self.to_hex2d(resolution);
+
+        FaceIJK {
+            face,
+            coord: CoordIJK::from_hex2d(&vec2d),
+        }
+    }
+
+    /// Encodes a coordinate on the sphere to the corresponding icosahedral face
+    /// containing the squared euclidean distance to that face center.
+    fn closest_face(&self) -> (i32, f64) {
+        let vec3d: Vec3d = self.into();
+        // determine the icosahedron face
+        let mut face = 0;
+        // The distance between two farthest points is 2.0, therefore the square of
+        // the distance between two points should always be less or equal than 4.0 .
+        let mut sqd = 5.;
+
+        for i in 1..NUM_ICOSA_FACES {
+            let sqd_t = FACE_CENTER_POINT[i].point_square_distance(&vec3d);
+            if sqd_t < sqd {
+                face = i as i32;
+                sqd = sqd_t;
+            }
+        }
+
+        (face, sqd)
+    }
+}
+
+impl Into<Vec3d> for LatLng {
+    fn into(self) -> Vec3d {
+        (&self).into()
+    }
+}
+
+impl Into<Vec3d> for &LatLng {
+    fn into(self) -> Vec3d {
+        let r = libm::sin(self.lat);
+
+        Vec3d {
+            x: libm::sin(self.lat),
+            y: libm::cos(self.lng) * r,
+            z: libm::sin(self.lng) * r,
+        }
+    }
 }
 
 pub fn deg_to_rads(degrees: f64) -> f64 {
@@ -176,7 +273,7 @@ pub fn constrain_lng(mut lng: f64) -> f64 {
     lng
 }
 
-pub fn hexagon_area_average_m2(resolution: i32) -> Result<f64, H3ErrorCode> {
+pub fn hexagon_area_average_m2(resolution: usize) -> Result<f64, H3ErrorCode> {
     const AREAS: [f64; 16] = [
         4.357449416078390e+12,
         6.097884417941339e+11,
@@ -196,14 +293,14 @@ pub fn hexagon_area_average_m2(resolution: i32) -> Result<f64, H3ErrorCode> {
         8.953115907605802e-01,
     ];
 
-    if resolution < 0 || resolution > MAX_H3_RES {
+    if resolution < 0 || resolution > MAX_H3_RES as usize {
         Err(H3ErrorCode::Domain)
     } else {
         Ok(AREAS[resolution as usize])
     }
 }
 
-pub fn hexagon_edge_length_average_km(resolution: i32) -> Result<f64, H3ErrorCode> {
+pub fn hexagon_edge_length_average_km(resolution: usize) -> Result<f64, H3ErrorCode> {
     const LENS: [f64; 16] = [
         1107.712591,
         418.6760055,
@@ -223,14 +320,14 @@ pub fn hexagon_edge_length_average_km(resolution: i32) -> Result<f64, H3ErrorCod
         0.000509713,
     ];
 
-    if resolution < 0 || resolution > MAX_H3_RES {
+    if resolution < 0 || resolution > MAX_H3_RES as usize {
         Err(H3ErrorCode::Domain)
     } else {
         Ok(LENS[resolution as usize])
     }
 }
 
-pub fn hexagon_edge_length_average_m(resolution: i32) -> Result<f64, H3ErrorCode> {
+pub fn hexagon_edge_length_average_m(resolution: usize) -> Result<f64, H3ErrorCode> {
     const LENS: [f64; 16] = [
         1107712.591,
         418676.0055,
@@ -250,7 +347,7 @@ pub fn hexagon_edge_length_average_m(resolution: i32) -> Result<f64, H3ErrorCode
         0.509713273,
     ];
 
-    if resolution < 0 || resolution > MAX_H3_RES {
+    if resolution < 0 || resolution > MAX_H3_RES as usize {
         Err(H3ErrorCode::Domain)
     } else {
         Ok(LENS[resolution as usize])
