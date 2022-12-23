@@ -5,4 +5,5 @@ edition = "2021"
 authors = ["Jonthan Whittle <jonathan.m.whittle@gmail.com>"]
 
 [dependencies]
+lazy_static = "1.4.0"
 libm = "0.2.3"
