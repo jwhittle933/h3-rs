@@ -1,6 +1,8 @@
+pub(crate) mod consts;
 pub mod error;
 pub mod index;
 
+pub use consts::*;
 pub use index::H3Index;
 
 pub const MAX_CELL_BOUNDARY_VERTS: usize = 10;

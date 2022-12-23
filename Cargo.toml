@@ -5,5 +5,7 @@ edition = "2021"
 authors = ["Jonthan Whittle <jonathan.m.whittle@gmail.com>"]
 
 [dependencies]
+derive-new = "0.5.9"
+derive_more = "0.99.17"
 lazy_static = "1.4.0"
 libm = "0.2.3"
