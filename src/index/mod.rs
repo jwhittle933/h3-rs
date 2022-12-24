@@ -4,7 +4,7 @@ use core::ops::{BitAnd, Shl, Shr};
 
 use derive_new::new;
 
-use crate::{direction::Direction, result::H3ErrorCode, MAX_H3_RES};
+use crate::{consts::H3_CELL_MODE, direction::Direction, result::H3ErrorCode, MAX_H3_RES};
 pub use consts::*;
 
 /// Identifier for an object (cell, edge, etc) in the H3System.
@@ -14,7 +14,16 @@ pub struct H3Index(u64);
 
 impl H3Index {
     pub fn init(resolution: usize, base_cell: usize, direction: Direction) -> Self {
-        //
+        let mut h3 = Self(H3_INIT)
+            .set_mode(H3_CELL_MODE)
+            .set_resolution(resolution)
+            .set_base_cell(base_cell);
+
+        for r in 1..=resolution {
+            h3 = h3.set_index_digit(r, direction);
+        }
+
+        h3
     }
 
     pub fn high_bit(&self) -> usize {
@@ -22,7 +31,7 @@ impl H3Index {
     }
 
     /// Sets the highest bit of the h3 to `bit`. Consumes `self`.
-    pub(crate) fn with_high_bit(self, bit: u64) -> Self {
+    pub(crate) fn set_high_bit(self, bit: u64) -> Self {
         Self((self & H3_HIGH_BIT_MASK_NEGATIVE) | (bit << H3_MAX_OFFSET))
     }
 
@@ -32,8 +41,8 @@ impl H3Index {
     }
 
     /// Sets the mode of the index to `mode`. Consumes `self`.
-    pub(crate) fn with_mode(self, mode: u64) -> Self {
-        Self((self & H3_MODE_MASK_NEGATIVE) | (mode << H3_MODE_OFFSET))
+    pub(crate) fn set_mode(self, mode: usize) -> Self {
+        Self((self & H3_MODE_MASK_NEGATIVE) | ((mode as u64) << H3_MODE_OFFSET))
     }
 
     /// Returns the integer base cell of `self`.
@@ -42,8 +51,8 @@ impl H3Index {
     }
 
     /// Sets the base cell of the index to `base_cell`. Consumes `self`.
-    pub(crate) fn with_base_cell(self, base_cell: u64) -> Self {
-        Self((self & H3_BC_MASK_NEGATIVE) | (base_cell << H3_BC_OFFSET))
+    pub(crate) fn set_base_cell(self, base_cell: usize) -> Self {
+        Self((self & H3_BC_MASK_NEGATIVE) | ((base_cell as u64) << H3_BC_OFFSET))
     }
 
     /// Returns the resolution of the index.
@@ -52,13 +61,24 @@ impl H3Index {
     }
 
     /// Sets the resolution of the index to `resolution`. Consumes `self`.
-    pub(crate) fn with_resolution(self, resolution: u64) -> Self {
-        Self((self & H3_RES_MASK_NEGATIVE) | (resolution << H3_RES_OFFSET))
+    pub(crate) fn set_resolution(self, resolution: usize) -> Self {
+        Self((self & H3_RES_MASK_NEGATIVE) | ((resolution as u64) << H3_RES_OFFSET))
     }
 
+    /// Gets the resolution digit (0-7)
     pub fn index_digit(&self, resolution: usize) -> Direction {
-        (((self >> ((MAX_H3_RES - resolution) as u64)) * H3_PER_DIGIT_OFFSET) & H3_DIGIT_MASK)
+        (((self >> (MAX_H3_RES - (resolution as u64))) * H3_PER_DIGIT_OFFSET) & H3_DIGIT_MASK)
             .into()
+    }
+
+    /// Sets the resolution of the index.
+    pub(crate) fn set_index_digit(self, resolution: usize, direction: Direction) -> Self {
+        let digit: u64 = direction.into();
+
+        Self(
+            (self & !(H3_DIGIT_MASK << ((MAX_H3_RES - (resolution as u64)) * H3_PER_DIGIT_OFFSET)))
+                | (digit << ((MAX_H3_RES - (resolution as u64)) * H3_PER_DIGIT_OFFSET)),
+        )
     }
 
     pub fn valid_cell(&self) {
