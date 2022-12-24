@@ -2,6 +2,7 @@ pub mod bounding_box;
 pub(crate) mod consts;
 pub mod direction;
 pub mod index;
+pub mod latlng;
 pub mod result;
 
 pub use consts::*;

@@ -13,6 +13,7 @@ pub use consts::*;
 pub struct H3Index(u64);
 
 impl H3Index {
+    /// Initializes an index with `resolution`, `base_cell`, and `direction` (0-7).
     pub fn init(resolution: usize, base_cell: usize, direction: Direction) -> Self {
         let mut h3 = Self(H3_INIT)
             .set_mode(H3_CELL_MODE)
@@ -20,7 +21,7 @@ impl H3Index {
             .set_base_cell(base_cell);
 
         for r in 1..=resolution {
-            h3 = h3.set_index_digit(r, direction);
+            h3 = h3.set_index_digit(r, direction.clone());
         }
 
         h3
@@ -72,17 +73,42 @@ impl H3Index {
     }
 
     /// Sets the resolution of the index.
-    pub(crate) fn set_index_digit(self, resolution: usize, direction: Direction) -> Self {
-        let digit: u64 = direction.into();
-
+    pub(crate) fn set_index_digit<D>(self, resolution: usize, direction: D) -> Self
+    where
+        D: Into<u64>,
+    {
+        let res = resolution as u64;
         Self(
-            (self & !(H3_DIGIT_MASK << ((MAX_H3_RES - (resolution as u64)) * H3_PER_DIGIT_OFFSET)))
-                | (digit << ((MAX_H3_RES - (resolution as u64)) * H3_PER_DIGIT_OFFSET)),
+            ((self) & !(H3_DIGIT_MASK << ((MAX_H3_RES - res) * H3_PER_DIGIT_OFFSET)))
+                | ((direction.into()) << ((MAX_H3_RES - res) * H3_PER_DIGIT_OFFSET)),
         )
     }
 
-    pub fn valid_cell(&self) {
-        //
+    /// Returns the value in the reserved space. Should always be 0 for valid indices.
+    pub fn reserved(&self) -> usize {
+        ((self & H3_RESERVED_MASK) >> H3_RESERVED_OFFSET) as usize
+    }
+
+    /// Sets a value in the reserved space. Setting to non-zero may
+    /// produce invalid indices.
+    pub(crate) fn set_reserved(self, val: usize) -> Self {
+        Self((self & H3_RESERVED_MASK_NEGATIVE) | ((val as u64) << H3_RESERVED_OFFSET))
+    }
+
+    /// Returns whether or not an index is a valid cell (hexagon or pentagon).
+    pub fn valid_cell(&self) -> bool {
+        if self.high_bit() != 0 {
+            return false;
+        }
+
+        if self.mode() != H3_CELL_MODE {
+            return false;
+        }
+
+        let base_cell = self.base_cell();
+        // NEVER()?
+
+        true
     }
 }
 
@@ -170,5 +196,41 @@ impl Shr<u64> for &H3Index {
 
     fn shr(self, rhs: u64) -> Self::Output {
         self.0 >> rhs
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn debug_index(h3: H3Index) -> H3Index {
+        println!("H3: {}", h3);
+        h3
+    }
+
+    #[test]
+    fn h3_init() {
+        let h3 = debug_index(H3Index::init(3, 4, Direction::Center));
+        assert_eq!(3, h3.resolution());
+        assert_eq!(4, h3.base_cell());
+        // TODO: figure this out
+        // assert_eq!(
+        //     Into::<usize>::into(Direction::Center),
+        //     h3.index_digit(3).into()
+        // );
+    }
+
+    #[test]
+    fn h3_high_bit() {
+        let h3 = debug_index(H3Index::init(15, 4, Direction::KAxes));
+        assert_eq!(0, h3.high_bit());
+        assert_eq!(1, debug_index(h3.set_high_bit(1)).high_bit(),);
+    }
+
+    #[test]
+    fn h3_mode() {
+        let h3 = debug_index(H3Index::init(12, 4, Direction::KAxes));
+        assert_eq!(1, h3.mode());
+        assert_eq!(0, debug_index(h3.set_mode(0)).mode(),);
     }
 }

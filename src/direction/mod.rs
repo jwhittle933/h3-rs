@@ -1,3 +1,4 @@
+#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord)]
 pub enum Direction {
     Center,
     KAxes,

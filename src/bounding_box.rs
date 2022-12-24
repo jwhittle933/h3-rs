@@ -1,3 +1,5 @@
+use crate::latlng::LatLng;
+
 #[derive(Debug, PartialEq, PartialOrd)]
 pub struct BoundingBox {
     /// North Latitude
@@ -16,7 +18,7 @@ impl BoundingBox {
     }
 
     pub fn center(&self) -> LatLng {
-        //
+        LatLng { lat: 0., lng: 0. }
     }
 
     pub fn contains(&self, latlng: &LatLng) -> bool {
