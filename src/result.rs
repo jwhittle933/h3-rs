@@ -1,3 +1,5 @@
+pub type Result<T> = core::result::Result<T, H3ErrorCode>;
+
 pub type H3Error = u32;
 
 pub enum H3ErrorCode {

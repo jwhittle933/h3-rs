@@ -1,6 +1,8 @@
+pub mod bounding_box;
 pub(crate) mod consts;
-pub mod error;
+pub mod direction;
 pub mod index;
+pub mod result;
 
 pub use consts::*;
 pub use index::H3Index;
