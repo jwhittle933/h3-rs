@@ -233,4 +233,34 @@ mod tests {
         assert_eq!(1, h3.mode());
         assert_eq!(0, debug_index(h3.set_mode(0)).mode(),);
     }
+
+    #[test]
+    fn h3_base_cell() {
+        let h3 = debug_index(H3Index::init(12, 4, Direction::IKAxes));
+        assert_eq!(4, h3.base_cell());
+        assert_eq!(5, debug_index(h3.set_base_cell(5)).base_cell(),);
+    }
+
+    #[test]
+    fn h3_resolution() {
+        let h3 = debug_index(H3Index::init(12, 4, Direction::IKAxes));
+        assert_eq!(12, h3.resolution());
+        assert_eq!(10, debug_index(h3.set_resolution(10)).resolution(),);
+    }
+
+    #[test]
+    fn h3_index_digit() {
+        let h3 = debug_index(H3Index::init(12, 4, Direction::IJAxes));
+        for r in 1..=12 {
+            println!("Digit at res {}: {:?}", r, h3.index_digit(r))
+        }
+        // TODO: figure this out
+    }
+
+    #[test]
+    fn h3_reserved() {
+        let h3 = debug_index(H3Index::init(12, 4, Direction::IJAxes));
+        assert_eq!(0, h3.reserved());
+        assert_eq!(2, debug_index(h3.set_reserved(10)).reserved());
+    }
 }

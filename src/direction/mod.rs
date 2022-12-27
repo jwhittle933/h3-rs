@@ -12,6 +12,34 @@ pub enum Direction {
     PentagonSkippedDigit,
 }
 
+impl Direction {
+    /// Rotates indexing digit 60-degrees counter-clockwise.
+    pub fn rotate_60_ccw(self) -> Direction {
+        match self {
+            Self::KAxes => Self::IKAxes,
+            Self::IKAxes => Self::IAxes,
+            Self::IAxes => Self::IJAxes,
+            Self::IJAxes => Self::JAxes,
+            Self::JAxes => Self::JKAxes,
+            Self::JKAxes => Self::KAxes,
+            _ => self,
+        }
+    }
+
+    /// Rotates indexing digit 60-degrees clockwise.
+    pub fn rotate_60_cw(self) -> Direction {
+        match self {
+            Self::KAxes => Self::JKAxes,
+            Self::JKAxes => Self::JAxes,
+            Self::JAxes => Self::IJAxes,
+            Self::IJAxes => Self::IAxes,
+            Self::IAxes => Self::IKAxes,
+            Self::IKAxes => Self::KAxes,
+            _ => self,
+        }
+    }
+}
+
 impl From<usize> for Direction {
     fn from(digit: usize) -> Self {
         match digit {
@@ -38,8 +66,8 @@ impl From<Direction> for usize {
             Direction::IKAxes => 5,
             Direction::IJAxes => 6,
             Direction::Invalid => 7,
-            Direction::NumDigits => 7,
-            Direction::PentagonSkippedDigit => 1,
+            Direction::NumDigits => Direction::Invalid as usize,
+            Direction::PentagonSkippedDigit => Direction::KAxes as usize,
         }
     }
 }
@@ -52,6 +80,6 @@ impl From<u64> for Direction {
 
 impl From<Direction> for u64 {
     fn from(digit: Direction) -> Self {
-        Into::<Direction>::into(digit) as u64
+        Into::<usize>::into(digit) as u64
     }
 }

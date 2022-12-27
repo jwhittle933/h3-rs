@@ -1,6 +1,9 @@
+pub mod base_cell;
 pub mod bounding_box;
 pub(crate) mod consts;
+pub mod coordinate;
 pub mod direction;
+pub mod face;
 pub mod index;
 pub mod latlng;
 pub mod result;

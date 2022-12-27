@@ -1,3 +1,6 @@
+pub use crate::base_cell::consts::*;
+pub use crate::index::consts::*;
+
 pub const M_PI: f64 = 3.14159265358979323846;
 /// pi / 2.0
 pub const M_PI_2: f64 = M_PI / 2.;
@@ -33,10 +36,6 @@ pub const RES0_U_GNOMONIC: f64 = 0.38196601125010500003;
 /// Max H3 resolution; H3 version 1 has 16 resolutions, numbered 0 through 15
 pub const MAX_H3_RES: u64 = 15;
 
-/// The number of faces on an icosahedron
-pub const NUM_ICOSA_FACES: usize = 20;
-/// The number of H3 base cells
-pub const NUM_BASE_CELLS: usize = 122;
 /// The number of vertices in a hexagon
 pub const NUM_HEX_VERTS: usize = 6;
 /// The number of vertices in a pentagon
