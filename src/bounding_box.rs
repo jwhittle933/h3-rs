@@ -21,7 +21,7 @@ impl BoundingBox {
         LatLng { lat: 0., lng: 0. }
     }
 
-    pub fn contains(&self, latlng: &LatLng) -> bool {
+    pub fn contains(&self, _latlng: &LatLng) -> bool {
         false
     }
 

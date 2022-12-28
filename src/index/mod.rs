@@ -1,20 +1,24 @@
+#![allow(dead_code)]
 pub(crate) mod consts;
 
 use core::ops::{BitAnd, Shl, Shr};
 
 use derive_new::new;
 
-use crate::{consts::H3_CELL_MODE, direction::Direction, result::H3ErrorCode, MAX_H3_RES};
+use crate::{
+    base_cell::is_base_cell_pentagon, consts::H3_CELL_MODE, direction::Direction,
+    result::H3ErrorCode, MAX_H3_RES, NUM_BASE_CELLS,
+};
 pub use consts::*;
 
 /// Identifier for an object (cell, edge, etc) in the H3System.
 /// The H3Index fits within a 64-bit unsigned integer.
-#[derive(Debug, new)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, new)]
 pub struct H3Index(u64);
 
 impl H3Index {
     /// Initializes an index with `resolution`, `base_cell`, and `direction` (0-7).
-    pub fn init(resolution: usize, base_cell: usize, direction: Direction) -> Self {
+    pub fn init(resolution: usize, base_cell: u64, direction: Direction) -> Self {
         let mut h3 = Self(H3_INIT)
             .set_mode(H3_CELL_MODE)
             .set_resolution(resolution)
@@ -52,8 +56,8 @@ impl H3Index {
     }
 
     /// Sets the base cell of the index to `base_cell`. Consumes `self`.
-    pub(crate) fn set_base_cell(self, base_cell: usize) -> Self {
-        Self((self & H3_BC_MASK_NEGATIVE) | ((base_cell as u64) << H3_BC_OFFSET))
+    pub(crate) fn set_base_cell(self, base_cell: u64) -> Self {
+        Self((self & H3_BC_MASK_NEGATIVE) | ((base_cell) << H3_BC_OFFSET))
     }
 
     /// Returns the resolution of the index.
@@ -96,6 +100,7 @@ impl H3Index {
     }
 
     /// Returns whether or not an index is a valid cell (hexagon or pentagon).
+    #[tracing::instrument(level = "trace")]
     pub fn valid_cell(&self) -> bool {
         if self.high_bit() != 0 {
             return false;
@@ -106,7 +111,32 @@ impl H3Index {
         }
 
         let base_cell = self.base_cell();
-        // NEVER()?
+        if base_cell > NUM_BASE_CELLS {
+            return false;
+        }
+
+        let res = self.resolution();
+        if res > MAX_H3_RES as usize {
+            return false;
+        }
+
+        let mut first_found_nonzero_digit = false;
+        for r in 1..=res {
+            let digit = self.index_digit(r);
+            if !first_found_nonzero_digit && digit != Direction::Center {
+                first_found_nonzero_digit = true;
+                if is_base_cell_pentagon(base_cell) && digit == Direction::KAxes {
+                    return false;
+                }
+            }
+        }
+
+        for r in res + 1..=(MAX_H3_RES as usize) {
+            let digit = self.index_digit(r);
+            if digit != Direction::Invalid {
+                return false;
+            }
+        }
 
         true
     }
@@ -171,7 +201,7 @@ impl Shl<u64> for H3Index {
     type Output = u64;
 
     fn shl(self, rhs: u64) -> Self::Output {
-        (&self).0 << rhs
+        self.0 << rhs
     }
 }
 
@@ -187,7 +217,7 @@ impl Shr<u64> for H3Index {
     type Output = u64;
 
     fn shr(self, rhs: u64) -> Self::Output {
-        (&self).0 >> rhs
+        self.0 >> rhs
     }
 }
 
@@ -238,7 +268,7 @@ mod tests {
     fn h3_base_cell() {
         let h3 = debug_index(H3Index::init(12, 4, Direction::IKAxes));
         assert_eq!(4, h3.base_cell());
-        assert_eq!(5, debug_index(h3.set_base_cell(5)).base_cell(),);
+        assert_eq!(5, h3.set_base_cell(5).base_cell());
     }
 
     #[test]
@@ -262,5 +292,22 @@ mod tests {
         let h3 = debug_index(H3Index::init(12, 4, Direction::IJAxes));
         assert_eq!(0, h3.reserved());
         assert_eq!(2, debug_index(h3.set_reserved(10)).reserved());
+    }
+
+    #[test]
+    fn h3_valid_cell() {
+        let init = H3Index::init(15, 4, Direction::Center);
+        assert!(init.valid_cell());
+
+        let h3 = init.clone().set_high_bit(1);
+        assert_eq!(1, h3.high_bit());
+        assert!(!h3.valid_cell());
+
+        let h3 = init.clone().set_mode(10);
+        assert_eq!(10, h3.mode());
+        assert!(!h3.valid_cell());
+
+        let h3 = init.set_base_cell(123456);
+        assert!(!h3.valid_cell());
     }
 }

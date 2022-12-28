@@ -1,3 +1,4 @@
+#![allow(clippy::excessive_precision)]
 pub use crate::base_cell::consts::*;
 pub use crate::index::consts::*;
 

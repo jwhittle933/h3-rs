@@ -4,8 +4,12 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Jonthan Whittle <jonathan.m.whittle@gmail.com>"]
 
+[package.metadata.cargo-udeps.ignore]
+normal = ["derive_more", "libm"]
+
 [dependencies]
 derive-new = "0.5.9"
 derive_more = "0.99.17"
 lazy_static = "1.4.0"
 libm = "0.2.3"
+tracing = "0.1.37"
